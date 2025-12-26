@@ -1,11 +1,12 @@
 {
-  "name": "閉環操作台｜Loop OS",
+  "name": "閉環操作台｜Loop OS v0.9",
   "short_name": "Loop OS",
-  "start_url": "./index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#fbf6e9",
   "theme_color": "#0f3d2e",
-  "description": "按步就班跑完整商業閉環：影片 → 工具 → 互動 → Google表單收Email → 陪跑 → 自然成交",
+  "description": "按步就班跑完整商業閉環：影片 → 工具 → 互動 → 溫柔邀請 → Google表單收Email → 陪跑 → 自然成交",
   "icons": [
     { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
