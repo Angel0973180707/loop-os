@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>閉環操作台｜Loop OS v0.9</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#0f3d2e" />
+  <meta name="background-color" content="#fbf6e9" />
+  <meta name="description" content="按步就班跑完整商業閉環：影片 → 工具 → 互動 → 溫柔邀請 → Google表單收Email → 陪跑 → 自然成交" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <style>
+    :root{
+      --bg:#fbf6e9;
+      --card:#ffffff;
+      --ink:#123;
+      --muted:#5a6b63;
+      --brand:#0f3d2e;
+      --accent:#f0a04b;
+      --line:#e8e1d6;
+      --shadow:0 10px 30px rgba(0,0,0,.07);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial;
+      background:linear-gradient(180deg,var(--bg),#fff);
+      color:var(--ink);
+    }
+    .app{max-width:960px;margin:0 auto;padding:14px 14px 90px;}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 4px 6px;
+      position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(251,246,233,.86));
+      backdrop-filter: blur(8px);
+      z-index:5;
+    }
+    .brand{display:flex;flex-direction:column;gap:2px;}
+    .brandTitle{font-weight:800;font-size:18px;color:var(--brand)}
+    .brandSub{font-size:12px;color:var(--muted)}
+    .btn{
+      border:0; border-radius:999px; padding:10px 12px; font-weight:700;
+      background:var(--brand); color:#fff; box-shadow:var(--shadow); cursor:pointer;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btnGhost{
+      border:1px solid var(--line); border-radius:999px; padding:10px 12px; font-weight:700;
+      background:#fff; color:var(--brand); cursor:pointer;
+    }
+    .grid{display:grid;gap:12px}
+    @media(min-width:820px){
+      .grid2{grid-template-columns:1.2fr .8fr}
+      .grid3{grid-template-columns:1fr 1fr 1fr}
+    }
+    .card{
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    .card h2{margin:0 0 8px;font-size:16px;color:var(--brand)}
+    .small{font-size:12px;color:var(--muted);line-height:1.5}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;
+      font-size:12px;color:var(--muted);
+    }
+    .chip b{color:var(--brand)}
+    .hr{height:1px;background:var(--line);margin:10px 0}
+    .tabs{
+      position:fixed; left:0; right:0; bottom:0; z-index:9;
+      background:#fff; border-top:1px solid var(--line);
+      display:flex; justify-content:space-around; padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+    }
+    .tab{
+      border:0;background:transparent;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;gap:4px;
+      font-size:11px;color:var(--muted);padding:6px 8px;border-radius:12px;
+      min-width:60px;
+    }
+    .tab.active{color:var(--brand);font-weight:800;background:rgba(15,61,46,.08)}
+    .titleRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .input, .select, .textarea{
+      width:100%; padding:10px 12px; border-radius:14px;
+      border:1px solid var(--line); background:#fff; outline:none;
+      font-size:14px;
+    }
+    .textarea{min-height:92px; resize:vertical}
+    .btnLine{
+      border:1px solid var(--line); background:#fff; color:var(--brand);
+      padding:10px 12px;border-radius:14px;font-weight:800;cursor:pointer;
+    }
+    .btnAcc{
+      border:0; background:var(--accent); color:#2c1b0b;
+      padding:10px 12px;border-radius:14px;font-weight:900;cursor:pointer;
+    }
+    .step{
+      border:1px solid var(--line); border-radius:16px; padding:12px; background:#fff;
+      display:grid; gap:8px;
+    }
+    .stepHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .stepTitle{font-weight:900;color:var(--brand)}
+    .stepDesc{font-size:12px;color:var(--muted);line-height:1.45}
+    .check{
+      display:inline-flex; align-items:center; gap:8px;
+      font-size:12px; color:var(--muted);
+    }
+    .progress{
+      height:10px;border-radius:999px;background:rgba(15,61,46,.10);overflow:hidden;border:1px solid var(--line);
+    }
+    .bar{height:100%;background:var(--brand);width:0%}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;font-size:12px}
+    .toast{
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:84px; background:#111; color:#fff; padding:10px 12px; border-radius:12px;
+      opacity:0; pointer-events:none; transition:.18s;
+      max-width:92vw; font-size:12px;
+    }
+    .toast.show{opacity:1}
+    .danger{color:#b42318}
+    .hint{background:rgba(240,160,75,.18); border:1px dashed rgba(240,160,75,.6); padding:10px;border-radius:14px}
+    .pill{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:6px 10px;border-radius:999px;background:rgba(15,61,46,.08); color:var(--brand);
+      font-size:12px; font-weight:900;
+    }
+    iframe{width:100%; border:1px solid var(--line); border-radius:16px; background:#fff}
+  </style>
+</head>
+
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brandTitle">閉環操作台｜Loop OS <span class="pill" id="verPill">v0.9</span></div>
+      <div class="brandSub">按步就班：影片 → 工具 → 互動 → Google表單收Email → 陪跑 → 自然成交</div>
+    </div>
+    <div class="row">
+      <button class="btnGhost" id="btnExport">匯出備份</button>
+      <button class="btn" id="btnNewLoop">新增閉環任務</button>
+    </div>
+  </header>
+
+  <!-- Views -->
+  <section id="viewToday" class="grid grid2" style="display:block;">
+    <div class="card">
+      <div class="titleRow">
+        <h2>今天要做什麼</h2>
+        <span class="chip">今天：<b id="todayText">-</b></span>
+      </div>
+      <div class="small">你只要做三件事：①檢查入口是否正確 ②看「完成工具」的人 ③照系統給的文字寄/回覆。</div>
+      <div class="hr"></div>
+
+      <div class="grid" style="gap:10px">
+        <div class="step">
+          <div class="stepHead">
+            <div>
+              <div class="stepTitle">① 今天主推的閉環任務</div>
+              <div class="stepDesc">選一個任務當主線，今天只推它（不分心）。</div>
+            </div>
+          </div>
+          <div class="row">
+            <select class="select" id="todayLoopSelect"></select>
+            <button class="btnAcc" id="btnOpenSelected">打開任務</button>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="stepHead">
+            <div>
+              <div class="stepTitle">② 今日快速提醒</div>
+              <div class="stepDesc">你可以手動輸入今天的數字（先不用自動化），系統就會提醒你下一步。</div>
+            </div>
+          </div>
+          <div class="grid grid3">
+            <div>
+              <div class="small">今日「工具使用」人次</div>
+              <input class="input" id="kpiToolUse" inputmode="numeric" placeholder="例如 12" />
+            </div>
+            <div>
+              <div class="small">今日「工具完成」人次</div>
+              <input class="input" id="kpiToolDone" inputmode="numeric" placeholder="例如 6" />
+            </div>
+            <div>
+              <div class="small">今日「留Email」人次</div>
+              <input class="input" id="kpiLeads" inputmode="numeric" placeholder="例如 2" />
+            </div>
+          </div>
+          <div class="row">
+            <button class="btnLine" id="btnSaveKpi">儲存今天數字</button>
+            <span class="chip">下一步：<b id="nextHint">-</b></span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="stepHead">
+            <div>
+              <div class="stepTitle">③ 今日要寄/回覆的文字（直接複製）</div>
+              <div class="stepDesc">先不用寄信系統整合：你先照著複製、貼到 Gmail 或寄信平台即可。</div>
+            </div>
+          </div>
+          <textarea class="textarea" id="todayMessage"></textarea>
+          <div class="row">
+            <button class="btnAcc" id="btnCopyTodayMsg">一鍵複製</button>
+            <button class="btnLine" id="btnMarkDoneToday">今天完成 ✔</button>
+          </div>
+          <div class="small">提醒：一對一用 Gmail（有人味）；多人序列交給寄信工具（之後再升級）。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>閉環清單（你的所有任務）</h2>
+      <div class="small">每一個「閉環任務」= 一支影片 + 一個工具 + 一個 Google 表單（收Email）。</div>
+      <div class="hr"></div>
+      <div id="loopList"></div>
+    </div>
+  </section>
+
+  <section id="viewLoop" style="display:none;">
+    <div class="card">
+      <div class="titleRow">
+        <h2 id="loopTitle">閉環任務</h2>
+        <div class="row">
+          <button class="btnGhost" id="btnBackToday">回到今天</button>
+          <button class="btnLine" id="btnDupLoop">複製這個任務</button>
+          <button class="btnGhost danger" id="btnDelLoop">刪除此任務</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <span class="chip">來源影片：<b id="loopVidChip">-</b></span>
+        <span class="chip">工具：<b id="loopToolChip">-</b></span>
+        <span class="chip">表單：<b id="loopFormChip">-</b></span>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid grid2">
+        <div class="card" style="box-shadow:none">
+          <h2>任務設定（你只要填這些）</h2>
+          <div class="small">填完後，下方 7 步驟會自動生成「可複製文案」與「正確連結」。</div>
+          <div class="hr"></div>
+
+          <div class="grid" style="gap:10px">
+            <div>
+              <div class="small">任務名稱（你看得懂就好）</div>
+              <input class="input" id="loopName" placeholder="例如：模組1｜大人先穩｜EP01" />
+            </div>
+
+            <div class="grid grid2">
+              <div>
+                <div class="small">影片標題</div>
+                <input class="input" id="videoTitle" placeholder="例如：大腦滿杯怎麼辦？" />
+              </div>
+              <div>
+                <div class="small">影片連結（YouTube）</div>
+                <input class="input" id="videoUrl" placeholder="貼上 YouTube 連結" />
+              </div>
+            </div>
+
+            <div class="grid grid2">
+              <div>
+                <div class="small">工具名稱</div>
+                <input class="input" id="toolTitle" placeholder="例如：3分鐘把心放回中間" />
+              </div>
+              <div>
+                <div class="small">工具網址（你的教養工具）</div>
+                <input class="input" id="toolUrl" placeholder="例如：https://xxx.github.io/m1/" />
+              </div>
+            </div>
+
+            <div class="hint">
+              <div class="small"><b>Google 表單（收 Email）</b>：你可以二選一（建議用 A）。</div>
+              <div class="grid" style="margin-top:8px; gap:10px">
+                <div>
+                  <div class="small">A. 表單「公開連結」（最簡單）</div>
+                  <input class="input" id="formLink" placeholder="https://forms.gle/xxxx" />
+                </div>
+                <div>
+                  <div class="small">B. 表單「嵌入碼」（想內嵌時用，貼 &lt;iframe...&gt; 也可以）</div>
+                  <textarea class="textarea mono" id="formEmbed" placeholder="<iframe src='...'></iframe>"></textarea>
+                </div>
+              </div>
+              <div class="small" style="margin-top:6px">你若只貼 A，工具端可用「按鈕跳轉」；若貼 B，工具端可用「內嵌 iframe」。</div>
+            </div>
+
+            <div>
+              <div class="small">留 Email 引導文字（你可以用預設，也可以改）</div>
+              <textarea class="textarea" id="leadPrompt"></textarea>
+              <div class="row">
+                <button class="btnLine" id="btnUsePromptA">套用版本A（清楚安全）</button>
+                <button class="btnLine" id="btnUsePromptB">套用版本B（偏實用）</button>
+                <button class="btnLine" id="btnUsePromptC">套用版本C（偏關係）</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <button class="btnAcc" id="btnSaveLoop">儲存設定</button>
+              <span class="chip">狀態：<b id="saveState">未儲存</b></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="box-shadow:none">
+          <h2>閉環進度</h2>
+          <div class="small">你只要照著 7 步驟勾選，閉環就完成了。每一步都有「一鍵複製」。</div>
+          <div class="hr"></div>
+
+          <div class="progress"><div class="bar" id="progBar"></div></div>
+          <div class="row" style="margin-top:10px">
+            <span class="chip">完成：<b id="progText">0/7</b></span>
+            <button class="btnLine" id="btnResetSteps">重設步驟</button>
+          </div>
+
+          <div class="hr"></div>
+          <div id="stepsBox" class="grid" style="gap:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>表單預覽（可選）</h2>
+      <div class="small">若你提供「嵌入碼」，這裡會顯示 iframe 預覽（方便你確認）。</div>
+      <div class="hr"></div>
+      <div id="formPreview" class="small">尚未提供嵌入碼。</div>
+    </div>
+  </section>
+
+  <section id="viewSettings" style="display:none;">
+    <div class="card">
+      <h2>設定與升級（先能用，再變強）</h2>
+      <div class="small">
+        v0.9：手動輸入數字 + Google表單收Email + 一鍵複製文案（最穩）<br/>
+        v1.x：表單名單自動匯入（Apps Script / Make）<br/>
+        v2.x：事件回傳（工具完成自動進 CRM）、自動陪跑排程
+      </div>
+      <div class="hr"></div>
+
+      <div class="grid grid2">
+        <div class="card" style="box-shadow:none">
+          <h2>備份/還原</h2>
+          <div class="small">建議你每週匯出一次備份（很重要）。</div>
+          <div class="hr"></div>
+          <div class="row">
+            <button class="btnAcc" id="btnExport2">匯出 JSON</button>
+            <label class="btnLine" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+              匯入 JSON
+              <input id="fileImport" type="file" accept="application/json" style="display:none" />
+            </label>
+          </div>
+          <div class="small" id="importState" style="margin-top:8px">尚未匯入。</div>
+        </div>
+
+        <div class="card" style="box-shadow:none">
+          <h2>Google表單使用提醒</h2>
+          <div class="small">
+            你要做的只有：<br/>
+            ① 建立表單（Email 必填 + 同意）<br/>
+            ② 把表單連結或嵌入碼貼到「閉環任務設定」<br/>
+            ③ 工具完成頁放「表單按鈕/iframe」<br/><br/>
+            你不需要寫後端，資料會進你的 Google 試算表。
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="small">版本：<b>Loop OS v0.9</b>（可升級架構已預留）</div>
+    </div>
+  </section>
+
+</div>
+
+<nav class="tabs" aria-label="主選單">
+  <button class="tab active" data-tab="today">今天</button>
+  <button class="tab" data-tab="loop">任務</button>
+  <button class="tab" data-tab="settings">設定</button>
+</nav>
+
+<div class="toast" id="toast">已複製</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Utils ----------
+  function $(id){ return document.getElementById(id); }
+  function pad2(n){ n = parseInt(n,10); return (n<10?"0":"")+n; }
+  function todayStr(){
+    var d = new Date();
+    return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  }
+  function uid(){
+    return "L" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+  function toast(msg){
+    var t = $("toast");
+    t.textContent = msg || "已完成";
+    t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 1200);
+  }
+  function safeNum(v){
+    var n = parseInt((v||"").toString().replace(/[^\d]/g,""),10);
+    return isNaN(n)?0:n;
+  }
+  function copyText(text){
+    try{
+      navigator.clipboard.writeText(text).then(function(){ toast("已複製"); }).catch(function(){ fallbackCopy(text); });
+    }catch(e){ fallbackCopy(text); }
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); toast("已複製"); }catch(e){ toast("複製失敗（請手動複製）"); }
+    document.body.removeChild(ta);
+  }
+  function parseIframeSrc(embed){
+    if(!embed) return "";
+    var m = embed.match(/src=['"]([^'"]+)['"]/i);
+    return m ? m[1] : "";
+  }
+
+  // ---------- Storage ----------
+  var KEY = "loopOS_v09";
+  var db = loadDB();
+
+  function loadDB(){
+    var raw = localStorage.getItem(KEY);
+    if(raw){
+      try{ return JSON.parse(raw); }catch(e){}
+    }
+    return {
+      version:"0.9",
+      lastOpen: todayStr(),
+      loops: [],
+      daily: {} // { "YYYY-MM-DD": {toolUse, toolDone, leads, msg, done} }
+    };
+  }
+  function saveDB(){
+    localStorage.setItem(KEY, JSON.stringify(db));
+  }
+
+  // ---------- Default Prompt Variants ----------
+  var promptA = "如果你想把今天這個練習，繼續往下走，\n我可以用 Email 把後續的陪伴內容寄給你。\n只會寄這個主題，不是推銷。";
+  var promptB = "這個練習接下來還有幾個延伸步驟，\n我可以用 Email 分次寄給你。\n你什麼時候不需要，都可以停。";
+  var promptC = "如果你願意，我可以把接下來的內容\n用 Email 陪你走幾天。\n你不用馬上決定，也不用一次做完。";
+
+  // ---------- Views ----------
+  var viewToday = $("viewToday");
+  var viewLoop = $("viewLoop");
+  var viewSettings = $("viewSettings");
+
+  function showTab(name){
+    var tabs = document.querySelectorAll(".tab");
+    tabs.forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-tab") === name);
+    });
+    viewToday.style.display = (name==="today") ? "block" : "none";
+    viewLoop.style.display = (name==="loop") ? "block" : "none";
+    viewSettings.style.display = (name==="settings") ? "block" : "none";
+  }
+
+  document.querySelectorAll(".tab").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var name = btn.getAttribute("data-tab");
+      if(name==="loop" && !currentLoopId){
+        // if no current selected, open first
+        if(db.loops.length){ openLoop(db.loops[0].id); }
+      }
+      showTab(name);
+    });
+  });
+
+  // ---------- Today ----------
+  $("todayText").textContent = todayStr();
+
+  function ensureAtLeastOneLoop(){
+    if(db.loops.length) return;
+    var id = uid();
+    db.loops.push(makeLoopTemplate(id));
+    saveDB();
+  }
+
+  function makeLoopTemplate(id){
+    return {
+      id:id,
+      name:"（新）閉環任務",
+      videoTitle:"",
+      videoUrl:"",
+      toolTitle:"",
+      toolUrl:"",
+      formLink:"",
+      formEmbed:"",
+      leadPrompt: promptA,
+      steps: {1:false,2:false,3:false,4:false,5:false,6:false,7:false},
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+
+  function renderLoopList(){
+    var box = $("loopList");
+    box.innerHTML = "";
+    if(!db.loops.length){
+      box.innerHTML = "<div class='small'>尚無閉環任務。請按右上角「新增閉環任務」。</div>";
+      return;
+    }
+    db.loops
+      .slice()
+      .sort(function(a,b){ return (b.updatedAt||0)-(a.updatedAt||0); })
+      .forEach(function(l){
+        var done = countDone(l);
+        var div = document.createElement("div");
+        div.className = "step";
+        div.innerHTML =
+          "<div class='stepHead'>"+
+            "<div>"+
+              "<div class='stepTitle'>"+escapeHtml(l.name||"(未命名)")+"</div>"+
+              "<div class='stepDesc'>影片："+escapeHtml(short(l.videoTitle))+"｜工具："+escapeHtml(short(l.toolTitle))+"</div>"+
+            "</div>"+
+            "<div class='chip'><b>"+done+"/7</b></div>"+
+          "</div>"+
+          "<div class='row'>"+
+            "<button class='btnAcc' data-open='"+l.id+"'>打開</button>"+
+            "<button class='btnLine' data-copylink='"+l.id+"'>複製工具入口連結</button>"+
+          "</div>";
+        box.appendChild(div);
+      });
+
+    box.querySelectorAll("[data-open]").forEach(function(b){
+      b.addEventListener("click", function(){
+        openLoop(b.getAttribute("data-open"));
+        showTab("loop");
+      });
+    });
+    box.querySelectorAll("[data-copylink]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var l = getLoop(b.getAttribute("data-copylink"));
+        if(!l) return;
+        var link = buildToolEntryLink(l);
+        copyText(link);
+      });
+    });
+  }
+
+  function renderTodaySelect(){
+    var sel = $("todayLoopSelect");
+    sel.innerHTML = "";
+    db.loops
+      .slice()
+      .sort(function(a,b){ return (b.updatedAt||0)-(a.updatedAt||0); })
+      .forEach(function(l){
+        var opt = document.createElement("option");
+        opt.value = l.id;
+        opt.textContent = (l.name||"(未命名)") + "  ("+countDone(l)+"/7)";
+        sel.appendChild(opt);
+      });
+    if(currentLoopId){
+      sel.value = currentLoopId;
+    }
+  }
+
+  function calcNextHint(kpi){
+    // very simple logic
+    if(kpi.leads > 0) return "把 Day1 陪跑內容寄出去（或先回覆謝謝）";
+    if(kpi.toolDone > 0) return "把留Email邀請放對位置（完成後）";
+    if(kpi.toolUse > 0) return "檢查工具是否有完成感（完成頁要明確）";
+    return "先確定影片下方有放「工具入口連結」";
+  }
+
+  function renderTodayKpi(){
+    var key = todayStr();
+    var d = db.daily[key] || {toolUse:0, toolDone:0, leads:0, msg:"", done:false};
+    $("kpiToolUse").value = d.toolUse || "";
+    $("kpiToolDone").value = d.toolDone || "";
+    $("kpiLeads").value = d.leads || "";
+    $("todayMessage").value = d.msg || defaultTodayMsg();
+    $("nextHint").textContent = calcNextHint(d);
+  }
+
+  function defaultTodayMsg(){
+    return "（今日建議）\n1) 確認影片下方的工具入口連結是否正確\n2) 確認工具完成頁是否有「溫柔邀請留下Email」\n3) 若有人回覆，優先用 Gmail 一對一回信（有人味）\n\n你可以用這句回覆：\n謝謝你願意做這個練習。你不需要一次做到很好，我們只要慢慢走就好。";
+  }
+
+  $("btnSaveKpi").addEventListener("click", function(){
+    var key = todayStr();
+    db.daily[key] = db.daily[key] || {toolUse:0, toolDone:0, leads:0, msg:"", done:false};
+    db.daily[key].toolUse = safeNum($("kpiToolUse").value);
+    db.daily[key].toolDone = safeNum($("kpiToolDone").value);
+    db.daily[key].leads = safeNum($("kpiLeads").value);
+    db.daily[key].msg = ($("todayMessage").value || "").trim();
+    saveDB();
+    $("nextHint").textContent = calcNextHint(db.daily[key]);
+    toast("已儲存");
+  });
+
+  $("btnCopyTodayMsg").addEventListener("click", function(){
+    copyText($("todayMessage").value || "");
+  });
+
+  $("btnMarkDoneToday").addEventListener("click", function(){
+    var key = todayStr();
+    db.daily[key] = db.daily[key] || {toolUse:0, toolDone:0, leads:0, msg:"", done:false};
+    db.daily[key].done = true;
+    saveDB();
+    toast("今天完成 ✔");
+  });
+
+  $("btnOpenSelected").addEventListener("click", function(){
+    var id = $("todayLoopSelect").value;
+    if(id){ openLoop(id); showTab("loop"); }
+  });
+
+  // ---------- Loop Detail ----------
+  var currentLoopId = null;
+
+  function getLoop(id){
+    for(var i=0;i<db.loops.length;i++){
+      if(db.loops[i].id === id) return db.loops[i];
+    }
+    return null;
+  }
+
+  function short(s){
+    s = (s||"").trim();
+    if(!s) return "（未填）";
+    return s.length>14 ? s.slice(0,14)+"…" : s;
+  }
+
+  function escapeHtml(s){
+    s = (s||"").toString();
+    return s.replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+  }
+
+  function countDone(loop){
+    var n=0;
+    for(var i=1;i<=7;i++){
+      if(loop.steps && loop.steps[i]) n++;
+    }
+    return n;
+  }
+
+  function buildToolEntryLink(loop){
+    // 帶參數讓你知道「哪支影片帶來」
+    var tool = (loop.toolUrl||"").trim();
+    if(!tool) return "（請先填工具網址）";
+    var sep = tool.indexOf("?")>=0 ? "&" : "?";
+    var vid = encodeURIComponent(loop.id);
+    // 你也可以把 loop.id 視為 vid，後續可升級成更人類可讀
+    return tool + sep + "vid=" + vid + "&src=yt";
+  }
+
+  function buildVideoDescBlock(loop){
+    var entry = buildToolEntryLink(loop);
+    var txt =
+"【一鍵領取練習工具】\n" +
+entry + "\n\n" +
+"（提醒）工具完成後可留下 Email，我會把後續陪伴內容寄給你。";
+    return txt;
+  }
+
+  function buildToolCompleteBlock(loop){
+    // 工具完成頁可用的文字 + 表單入口
+    var prompt = (loop.leadPrompt||promptA).trim();
+    var link = (loop.formLink||"").trim();
+    var embed = (loop.formEmbed||"").trim();
+    var out = "（工具完成頁文字）\n" + prompt + "\n\n";
+    if(embed){
+      out += "你已提供嵌入碼：可在工具完成頁直接內嵌 iframe。\n";
+    }else if(link){
+      out += "你已提供表單連結：可在工具完成頁放「留下Email」按鈕連到表單。\n表單連結：" + link + "\n";
+    }else{
+      out += "尚未提供表單：請先建立 Google 表單，再把連結貼到這裡。\n";
+    }
+    return out;
+  }
+
+  function openLoop(id){
+    var loop = getLoop(id);
+    if(!loop) return;
+    currentLoopId = id;
+
+    $("loopTitle").textContent = "閉環任務｜" + (loop.name||"(未命名)");
+    $("loopVidChip").textContent = short(loop.videoTitle);
+    $("loopToolChip").textContent = short(loop.toolTitle);
+    $("loopFormChip").textContent = (loop.formEmbed||loop.formLink) ? "已設定" : "未設定";
+
+    $("loopName").value = loop.name || "";
+    $("videoTitle").value = loop.videoTitle || "";
+    $("videoUrl").value = loop.videoUrl || "";
+    $("toolTitle").value = loop.toolTitle || "";
+    $("toolUrl").value = loop.toolUrl || "";
+    $("formLink").value = loop.formLink || "";
+    $("formEmbed").value = loop.formEmbed || "";
+    $("leadPrompt").value = loop.leadPrompt || promptA;
+    $("saveState").textContent = "已載入";
+
+    renderSteps(loop);
+    renderFormPreview(loop);
+
+    renderTodaySelect(); // keep select in sync
+  }
+
+  function renderFormPreview(loop){
+    var box = $("formPreview");
+    var embed = (loop.formEmbed||"").trim();
+    var src = parseIframeSrc(embed);
+    if(src){
+      box.innerHTML = "<iframe title='form' src='"+escapeHtml(src)+"' height='520' loading='lazy'></iframe>";
+    }else{
+      box.textContent = "尚未提供可解析的 iframe src（你可以在任務設定貼入 Google 表單的「嵌入碼」）。";
+    }
+  }
+
+  function renderSteps(loop){
+    var stepsBox = $("stepsBox");
+    stepsBox.innerHTML = "";
+
+    var defs = [
+      {n:1, title:"Step 1｜建立影片入口", desc:"貼上影片連結，並確認影片下方要放『工具入口連結』。", actions:[
+        {label:"複製影片下方文案（含工具入口）", fn:function(){ copyText(buildVideoDescBlock(loop)); }},
+        {label:"打開影片連結", fn:function(){ openUrl(loop.videoUrl); }}
+      ]},
+      {n:2, title:"Step 2｜建立工具入口（帶參數）", desc:"系統會生成工具入口連結（可追溯來源）。把它貼到影片下方。", actions:[
+        {label:"複製工具入口連結", fn:function(){ copyText(buildToolEntryLink(loop)); }},
+        {label:"打開工具網址", fn:function(){ openUrl(loop.toolUrl); }}
+      ]},
+      {n:3, title:"Step 3｜工具內完成感", desc:"確保工具有『完成畫面』，讓人知道自己做到了。", actions:[
+        {label:"檢查清單（複製）", fn:function(){ copyText("完成感清單：\n- 3–5 分鐘完成\n- 有清楚的完成按鈕/完成畫面\n- 有一句被理解的回饋\n- 有下一步（可選）"); }}
+      ]},
+      {n:4, title:"Step 4｜完成後出現留Email（Google表單）", desc:"只有完成後才邀請留下 Email。你可以貼表單連結或嵌入碼。", actions:[
+        {label:"複製完成頁文字＋表單提示", fn:function(){ copyText(buildToolCompleteBlock(loop)); }},
+        {label:"打開 Google 表單連結", fn:function(){ openUrl(loop.formLink); }}
+      ]},
+      {n:5, title:"Step 5｜陪跑內容（先手動也可以）", desc:"先用 3 封（Day1/Day3/Day7）就能跑起來。", actions:[
+        {label:"複製 3 封陪跑信骨架", fn:function(){ copyText("陪跑信（骨架）：\n\nDay 1｜先接住\n- 你願意開始已經很棒\n- 今天只做一件小事\n- 3分鐘練習連結（可選）\n\nDay 3｜把一句話練回來\n- 你不是做不到，是系統太滿\n- 今天練一句可說出口的話\n\nDay 7｜回顧與下一步\n- 你已經走了一週\n- 若你想更完整，我整理了一套路徑（方案/課程）"); }}
+      ]},
+      {n:6, title:"Step 6｜自然成交（剛剛好出現）", desc:"不急著賣。等對方準備好，才提供方案。", actions:[
+        {label:"複製『剛剛好』成交句", fn:function(){ copyText("如果你覺得這一週的節奏對你有幫助，\n我把更完整的路徑整理成一套系統。\n你不需要急著決定，想了解時再來就好。"); }}
+      ]},
+      {n:7, title:"Step 7｜回看數據（先手動輸入就好）", desc:"先追三個數：使用、完成、留Email。跑順再自動化。", actions:[
+        {label:"回到『今天』輸入數字", fn:function(){ showTab('today'); }}
+      ]}
+    ];
+
+    defs.forEach(function(d){
+      var done = !!(loop.steps && loop.steps[d.n]);
+      var div = document.createElement("div");
+      div.className = "step";
+      div.innerHTML =
+        "<div class='stepHead'>"+
+          "<div>"+
+            "<div class='stepTitle'>"+escapeHtml(d.title)+"</div>"+
+            "<div class='stepDesc'>"+escapeHtml(d.desc)+"</div>"+
+          "</div>"+
+          "<label class='check'><input type='checkbox' data-step='"+d.n+"' "+(done?"checked":"")+">完成</label>"+
+        "</div>"+
+        "<div class='row' id='act-"+d.n+"'></div>";
+      stepsBox.appendChild(div);
+
+      var act = div.querySelector("#act-"+d.n);
+      d.actions.forEach(function(a){
+        var b = document.createElement("button");
+        b.className = "btnLine";
+        b.type = "button";
+        b.textContent = a.label;
+        b.addEventListener("click", function(){ a.fn(); });
+        act.appendChild(b);
+      });
+    });
+
+    stepsBox.querySelectorAll("input[type=checkbox][data-step]").forEach(function(cb){
+      cb.addEventListener("change", function(){
+        var n = parseInt(cb.getAttribute("data-step"),10);
+        loop.steps[n] = cb.checked;
+        loop.updatedAt = Date.now();
+        saveDB();
+        updateProgress(loop);
+        renderLoopList();
+        renderTodaySelect();
+      });
+    });
+
+    updateProgress(loop);
+  }
+
+  function updateProgress(loop){
+    var done = countDone(loop);
+    $("progText").textContent = done + "/7";
+    $("progBar").style.width = Math.round(done/7*100) + "%";
+  }
+
+  function openUrl(url){
+    url = (url||"").trim();
+    if(!url){ toast("尚未填連結"); return; }
+    window.open(url, "_blank");
+  }
+
+  $("btnSaveLoop").addEventListener("click", function(){
+    var loop = getLoop(currentLoopId);
+    if(!loop) return;
+
+    loop.name = ($("loopName").value||"").trim() || "（新）閉環任務";
+    loop.videoTitle = ($("videoTitle").value||"").trim();
+    loop.videoUrl = ($("videoUrl").value||"").trim();
+    loop.toolTitle = ($("toolTitle").value||"").trim();
+    loop.toolUrl = ($("toolUrl").value||"").trim();
+    loop.formLink = ($("formLink").value||"").trim();
+    loop.formEmbed = ($("formEmbed").value||"").trim();
+    loop.leadPrompt = ($("leadPrompt").value||"").trim() || promptA;
+    loop.updatedAt = Date.now();
+
+    saveDB();
+    $("saveState").textContent = "已儲存";
+    toast("已儲存");
+
+    // refresh chips + steps + preview
+    openLoop(loop.id);
+    renderLoopList();
+    renderTodaySelect();
+  });
+
+  $("btnUsePromptA").addEventListener("click", function(){ $("leadPrompt").value = promptA; toast("已套用"); });
+  $("btnUsePromptB").addEventListener("click", function(){ $("leadPrompt").value = promptB; toast("已套用"); });
+  $("btnUsePromptC").addEventListener("click", function(){ $("leadPrompt").value = promptC; toast("已套用"); });
+
+  $("btnResetSteps").addEventListener("click", function(){
+    var loop = getLoop(currentLoopId);
+    if(!loop) return;
+    for(var i=1;i<=7;i++) loop.steps[i] = false;
+    loop.updatedAt = Date.now();
+    saveDB();
+    renderSteps(loop);
+    renderLoopList();
+    renderTodaySelect();
+    toast("已重設");
+  });
+
+  $("btnBackToday").addEventListener("click", function(){
+    showTab("today");
+  });
+
+  $("btnDelLoop").addEventListener("click", function(){
+    var id = currentLoopId;
+    if(!id) return;
+    var name = "";
+    for(var i=0;i<db.loops.length;i++){
+      if(db.loops[i].id===id){ name=db.loops[i].name; break; }
+    }
+    if(!confirm("確定刪除「"+(name||"這個任務")+"」？（刪除不可復原）")) return;
+    db.loops = db.loops.filter(function(x){ return x.id!==id; });
+    currentLoopId = db.loops.length ? db.loops[0].id : null;
+    saveDB();
+    renderLoopList();
+    renderTodaySelect();
+    if(currentLoopId) openLoop(currentLoopId);
+    else showTab("today");
+    toast("已刪除");
+  });
+
+  $("btnDupLoop").addEventListener("click", function(){
+    var loop = getLoop(currentLoopId);
+    if(!loop) return;
+    var copy = JSON.parse(JSON.stringify(loop));
+    copy.id = uid();
+    copy.name = (loop.name||"閉環任務") + "（複製）";
+    copy.createdAt = Date.now();
+    copy.updatedAt = Date.now();
+    // reset steps
+    copy.steps = {1:false,2:false,3:false,4:false,5:false,6:false,7:false};
+    db.loops.unshift(copy);
+    saveDB();
+    renderLoopList();
+    renderTodaySelect();
+    openLoop(copy.id);
+    toast("已複製");
+  });
+
+  $("btnNewLoop").addEventListener("click", function(){
+    var id = uid();
+    var loop = makeLoopTemplate(id);
+    db.loops.unshift(loop);
+    saveDB();
+    renderLoopList();
+    renderTodaySelect();
+    openLoop(id);
+    showTab("loop");
+    toast("已新增");
+  });
+
+  // ---------- Export / Import ----------
+  function exportJSON(){
+    var blob = new Blob([JSON.stringify(db,null,2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "LoopOS_v0.9_backup_"+todayStr()+".json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+    }, 300);
+  }
+
+  $("btnExport").addEventListener("click", exportJSON);
+  $("btnExport2").addEventListener("click", exportJSON);
+
+  $("fileImport").addEventListener("change", function(){
+    var f = $("fileImport").files && $("fileImport").files[0];
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var obj = JSON.parse(reader.result);
+        if(!obj || !obj.loops) throw new Error("格式不正確");
+        db = obj;
+        saveDB();
+        $("importState").textContent = "已匯入："+f.name;
+        ensureAtLeastOneLoop();
+        renderLoopList();
+        renderTodaySelect();
+        renderTodayKpi();
+        if(db.loops.length){ openLoop(db.loops[0].id); }
+        toast("匯入完成");
+      }catch(e){
+        $("importState").textContent = "匯入失敗："+(e.message||"");
+        toast("匯入失敗");
+      }
+      $("fileImport").value = "";
+    };
+    reader.readAsText(f);
+  });
+
+  // ---------- Init ----------
+  ensureAtLeastOneLoop();
+  currentLoopId = db.loops[0].id;
+  renderLoopList();
+  renderTodaySelect();
+  renderTodayKpi();
+  openLoop(currentLoopId);
+  showTab("today");
+
+  // ---------- Service worker ----------
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").catch(function(){});
+    });
+  }
+
+})();
+</script>
+</body>
+                  </html>
